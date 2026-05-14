@@ -28,7 +28,9 @@ export default function AllIterations({ result, error, solving }) {
       <div className="iter-card solving-card">
         <div className="solving-loader">
           <div className="solving-loader__bar" />
-          <div className="solving-loader__text">Обчислення оптимального плану…</div>
+          <div className="solving-loader__text">
+            Обчислення оптимального плану…
+          </div>
         </div>
       </div>
     );
@@ -36,7 +38,9 @@ export default function AllIterations({ result, error, solving }) {
   if (!result) {
     return (
       <div className="iter-card">
-        <div className="empty-hint">Введіть задачу та натисніть Розв'язати →</div>
+        <div className="empty-hint">
+          Введіть задачу та натисніть Розв'язати →
+        </div>
       </div>
     );
   }
@@ -95,7 +99,8 @@ function IterationBlock({
         <span className="iter-tag">Таблиця 2.{idx + 1}</span>
         {!isOptimal && entCol >= 0 && (
           <span className="iter-pivot-col">
-            Напрямний стовпець — A<sub style={{ fontSize: "0.75em" }}>{entCol + 1}</sub>
+            Напрямний стовпець — A
+            <sub style={{ fontSize: "0.75em" }}>{entCol + 1}</sub>
           </span>
         )}
       </div>
@@ -113,6 +118,7 @@ function IterationBlock({
                   className={[
                     "tc-cj",
                     j === entCol ? "tc-col-ent tc-pivot-col" : "",
+                    j === entCol - 1 && entCol > 0 ? "tc-pivot-col-prev" : "",
                   ]
                     .filter(Boolean)
                     .join(" ")}
@@ -131,6 +137,7 @@ function IterationBlock({
                   className={[
                     "tc-aname",
                     j === entCol ? "tc-col-ent tc-pivot-col" : "",
+                    j === entCol - 1 && entCol > 0 ? "tc-pivot-col-prev" : "",
                   ]
                     .filter(Boolean)
                     .join(" ")}
@@ -152,6 +159,7 @@ function IterationBlock({
                   className={[
                     isLeaving ? "tr-leaving" : "",
                     isPivotRow ? "tr-pivot-row" : "",
+                    i === pivotRow - 1 && !isOptimal ? "tr-pivot-row-prev" : "",
                   ]
                     .filter(Boolean)
                     .join(" ")}
@@ -184,6 +192,9 @@ function IterationBlock({
                             ? "tc-col-ent tc-pivot-col"
                             : "",
                           j === entCol && isPivot ? "tc-pivot-col" : "",
+                          j === entCol - 1 && entCol > 0 && !isOptimal
+                            ? "tc-pivot-col-prev"
+                            : "",
                         ]
                           .filter(Boolean)
                           .join(" ")}
@@ -209,6 +220,7 @@ function IterationBlock({
                   className={[
                     d < -1e-9 ? "tc-neg" : d > 1e-9 ? "tc-pos" : "",
                     j === entCol ? "tc-col-ent-delta tc-pivot-col" : "",
+                    j === entCol - 1 && entCol > 0 ? "tc-pivot-col-prev" : "",
                   ]
                     .filter(Boolean)
                     .join(" ")}
@@ -238,13 +250,24 @@ function IterationBlock({
       {!isOptimal && pivotRow >= 0 && pivEl !== null && (
         <div className="pivot-summary">
           <div>
-            Напрямний стовпець — <strong>A<sub style={{ fontSize: "0.7em" }}>{entCol + 1}</sub></strong> (за
-            найвід'ємнішою оцінкою Δ<sub style={{ fontSize: "0.7em" }}>{entCol + 1}</sub> = {fmt(delta[entCol])}), змінна
-            що входить у базис — <strong><VarName name={varNames[entCol]} /></strong>.
+            Напрямний стовпець —{" "}
+            <strong>
+              A<sub style={{ fontSize: "0.7em" }}>{entCol + 1}</sub>
+            </strong>{" "}
+            (за найвід'ємнішою оцінкою Δ
+            <sub style={{ fontSize: "0.7em" }}>{entCol + 1}</sub> ={" "}
+            {fmt(delta[entCol])}), змінна що входить у базис —{" "}
+            <strong>
+              <VarName name={varNames[entCol]} />
+            </strong>
+            .
           </div>
           <div>
-            Напрямний рядок — <strong><VarName name={varNames[basis[pivotRow]]} /></strong> (за
-            найменшим з відношень — min(
+            Напрямний рядок —{" "}
+            <strong>
+              <VarName name={varNames[basis[pivotRow]]} />
+            </strong>{" "}
+            (за найменшим з відношень — min(
             {ratios
               ?.map((r, i) =>
                 r !== null
@@ -254,7 +277,10 @@ function IterationBlock({
               .filter(Boolean)
               .join("; ")}
             ) = {fmt(tableau[pivotRow][total] / pivEl)}). Змінна{" "}
-            <strong><VarName name={varNames[basis[pivotRow]]} /></strong> виводиться з базису.
+            <strong>
+              <VarName name={varNames[basis[pivotRow]]} />
+            </strong>{" "}
+            виводиться з базису.
           </div>
           <div>
             Напрямний елемент —{" "}

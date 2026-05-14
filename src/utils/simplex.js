@@ -68,11 +68,13 @@ export function solveSimplex(objCoefs, constraints, objType) {
   for (let i = 0; i < m; i++) {
     const row = new Array(total + 1).fill(0);
     const { coefs, sign, rhs } = constraints[i];
-    const mult = sign === ">=" ? -1 : 1;
-    for (let j = 0; j < n; j++) row[j] = coefs[j] * mult;
-    row[n + i] = mult;
-    row[total] = rhs * mult;
-    if (row[total] < 0) for (let k = 0; k <= total; k++) row[k] *= -1;
+    for (let j = 0; j < n; j++) row[j] = Number(coefs[j]);
+    row[n + i] = sign === ">=" ? -1 : 1;
+    row[total] = Number(rhs);
+
+    if (row[total] < 0) {
+      for (let k = 0; k <= total; k++) row[k] *= -1;
+    }
     tableau.push(row);
     basis.push(n + i);
   }

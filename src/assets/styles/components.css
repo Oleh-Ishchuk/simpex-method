@@ -508,12 +508,15 @@ select.field__input option {
 .table-scroll {
   overflow-x: auto;
 }
+
 .simplex-table {
-  border-collapse: collapse;
+  border-collapse: separate;
+  border-spacing: 0;
   font-family: var(--font-mono);
   font-size: 12px;
   width: 100%;
 }
+
 .simplex-table td {
   padding: 8px 14px;
   border: 1px solid rgba(255, 255, 255, 0.1);
@@ -521,64 +524,90 @@ select.field__input option {
   white-space: nowrap;
   color: var(--text-1);
   background: rgba(20, 40, 70, 0.6);
+  position: relative;
 }
+
 .tr-cj td,
 .tr-names td {
   background: rgba(20, 40, 70, 0.6);
 }
+
 .simplex-table tbody tr:hover td {
   background: rgba(30, 55, 95, 0.75);
 }
+
 .tr-leaving td {
-  background: rgba(126, 252, 235, 0.06) !important;
+  background: rgba(182, 224, 255, 0.06) !important;
 }
+
 .tr-delta td {
   background: rgba(20, 40, 70, 0.6) !important;
   border-top: 1px solid rgba(182, 224, 255, 0.25);
 }
+
 .tc-head {
   color: var(--text-3);
   font-size: 9px;
   text-transform: uppercase;
 }
+
 .tc-blank {
   background: transparent !important;
 }
+
 .tc-cj {
   color: var(--ice);
 }
+
 .tc-basis {
   color: var(--ice-bright);
 }
+
 .tc-basis-leave {
   color: var(--danger) !important;
 }
+
 .tc-neg {
   color: var(--aurora);
   font-weight: 600;
 }
+
 .tc-pivot-col {
-  border-left: 1.5px solid var(--aurora) !important;
-  border-right: 1.5px solid var(--aurora) !important;
+  z-index: 3;
+  border-left: 2px solid var(--ice) !important;
+  border-right: 2px solid var(--ice) !important;
 }
+
 thead tr:first-child .tc-pivot-col {
-  border-top: 1.5px solid var(--aurora) !important;
+  border-top: 2px solid var(--ice) !important;
 }
+
 .tr-delta .tc-pivot-col {
-  border-bottom: 1.5px solid var(--aurora) !important;
+  border-bottom: 2px solid var(--ice) !important;
 }
+
 .tc-col-ent {
-  background: rgba(126, 252, 235, 0.08) !important;
-  color: var(--aurora) !important;
+  color: var(--ice) !important;
 }
+
 .tr-pivot-row td {
-  border-top: 1px solid var(--aurora) !important;
-  border-bottom: 1px solid var(--aurora) !important;
+  border-top: 2px solid var(--ice) !important;
+  border-bottom: 2px solid var(--ice) !important;
 }
+
+.tr-pivot-row td:first-child {
+  border-left: 2px solid var(--ice) !important;
+}
+
+.tr-pivot-row td:last-child {
+  border-right: 2px solid var(--ice) !important;
+}
+
 .tc-pivot {
   background: rgba(182, 224, 255, 0.1) !important;
   padding: 0 !important;
 }
+
 .pivot-inner {
   display: inline-flex;
   align-items: center;
@@ -591,11 +620,13 @@ thead tr:first-child .tc-pivot-col {
   border-radius: 7px;
   animation: piv-pulse 1.6s ease-in-out infinite;
 }
+
 @keyframes piv-pulse {
   0%,
   100% {
     box-shadow: 0 0 18px var(--ice-glow);
   }
+
   50% {
     box-shadow: 0 0 32px var(--ice-glow-s);
   }

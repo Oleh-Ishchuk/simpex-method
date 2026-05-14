@@ -181,7 +181,7 @@ function CanonicalBlock({
       <div style={{ display: "flex", flexDirection: "column", paddingLeft: 8 }}>
         {constraints.map((c, i) => {
           const divBy = rowGcds[i] || 1;
-          const slackVal = c.sign === ">=" ? -1 : 1;
+          const slackVal = 1;
           const slack = Array(m).fill(0);
           slack[i] = slackVal;
           const fullCoefs = [
@@ -227,10 +227,11 @@ export default function ProblemDisplay({ problem, result, hasSolved }) {
     .filter(Boolean);
   const canSimplify = simplifyInfo.length > 0;
 
-  const needsNormalization = constraints.some((c) => Number(c.rhs) < 0);
   const normalizationInfo = constraints
-    .map((c, i) => (Number(c.rhs) < 0 ? i + 1 : null))
+    .map((c, i) => (Number(c.rhs) < 0 || c.sign === ">=" ? i + 1 : null))
     .filter(Boolean);
+  const needsNormalization = normalizationInfo.length > 0;
+  const isAlreadyCanonical = constraints.every((c) => c.sign !== ">=") && !needsNormalization;
 
   const extObjCoefs = [
     ...objCoefs.map(Number),
@@ -288,7 +289,9 @@ export default function ProblemDisplay({ problem, result, hasSolved }) {
         {hasSolved && (
           <div className="math-step">
             <div className="step-text" style={{ marginBottom: 24 }}>
-              Математичну модель задачі приведемо до канонічного вигляду.
+              {isAlreadyCanonical
+                ? "Математичну модель задачі приведено до канонічного вигляду."
+                : "Математичну модель задачі приведемо до канонічного вигляду."}
             </div>
           </div>
         )}
@@ -299,13 +302,13 @@ export default function ProblemDisplay({ problem, result, hasSolved }) {
             style={{ marginTop: 0, borderTop: "none", paddingTop: 0 }}
           >
             <div className="step-text">
-              Оскільки вільні члени не можуть бути від'ємними, помножимо
-              нерівність {normalizationInfo.join(", ")} на −1 (змінивши знаки
-              нерівностей):
+              Оскільки в системі обмежень є знаки "≥" або від'ємні вільні члени,
+              помножимо нерівність {normalizationInfo.join(", ")} на −1 (змінивши
+              знаки нерівностей):
             </div>
             <ConstraintBlock
               constraints={constraints.map((c) =>
-                Number(c.rhs) < 0
+                Number(c.rhs) < 0 || c.sign === ">="
                   ? {
                       ...c,
                       coefs: c.coefs.map((v) => -v),
@@ -345,7 +348,7 @@ export default function ProblemDisplay({ problem, result, hasSolved }) {
 
             <CanonicalBlock
               constraints={constraints.map((c) =>
-                Number(c.rhs) < 0
+                Number(c.rhs) < 0 || c.sign === ">="
                   ? {
                       ...c,
                       coefs: c.coefs.map((v) => -v),
@@ -372,20 +375,9 @@ export default function ProblemDisplay({ problem, result, hasSolved }) {
                   const slackIdx = i - numVars;
                   const c = constraints[slackIdx];
                   const divBy = rowGcds[slackIdx] || 1;
-                  // Start with simplified RHS
                   val = Number(c.rhs) / divBy;
-                  // If RHS was negative, we normalized (multiplied by -1)
-                  if (Number(c.rhs) < 0) val = -val;
-                  // If original sign was >=, we have a surplus variable (-x_s)
-                  // Equation: ... - x_s = rhs => x_s = -rhs
-                  // HOWEVER, if we also normalized (multiplied by -1), 
-                  // the sign of x_s flipped to +x_s.
-                  // Let's check the actual sign used in the solver/CanonicalBlock.
-                  const slackCoef = c.sign === ">=" ? -1 : 1;
-                  const normalizedSlackCoef = Number(c.rhs) < 0 ? -slackCoef : slackCoef;
-                  // Equation: ... + normalizedSlackCoef * x_s = normalizedRHS
-                  // x_s = normalizedRHS / normalizedSlackCoef
-                  val = val / normalizedSlackCoef;
+                  const needsFlip = (c.sign === ">=") !== (Number(c.rhs) < 0);
+                  if (needsFlip) val = -val;
                 }
                 return (
                   <span key={v} className="bfs-item">
