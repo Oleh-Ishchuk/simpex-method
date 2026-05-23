@@ -84,7 +84,9 @@ function IterationBlock({
     enteringCol,
     pivotRow,
     ratios,
+    varNames: stepVarNames,
   } = step;
+  const activeVarNames = stepVarNames || varNames;
   const total = tableau[0].length - 1;
   const isOptimal = delta.every((d) => d >= -1e-9);
   const pivEl =
@@ -96,7 +98,9 @@ function IterationBlock({
   return (
     <div className="iter-card">
       <div className="iter-header">
-        <span className="iter-tag">Таблиця 2.{idx + 1}</span>
+        <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
+          <span className="iter-tag">Таблиця {idx + 1}</span>
+        </div>
         {!isOptimal && entCol >= 0 && (
           <span className="iter-pivot-col">
             Напрямний стовпець — A
@@ -112,7 +116,7 @@ function IterationBlock({
               <td className="tc-blank"></td>
               <td className="tc-head">C</td>
               <td className="tc-head tc-dash">–</td>
-              {varNames.map((_, j) => (
+              {activeVarNames.map((_, j) => (
                 <td
                   key={j}
                   className={[
@@ -123,7 +127,9 @@ function IterationBlock({
                     .filter(Boolean)
                     .join(" ")}
                 >
-                  {fmt(cjDisplay[j])}
+                  {typeof cjDisplay[j] === "string"
+                    ? cjDisplay[j]
+                    : fmt(cjDisplay[j])}
                 </td>
               ))}
             </tr>
@@ -131,7 +137,7 @@ function IterationBlock({
               <td className="tc-blank"></td>
               <td className="tc-head">B</td>
               <td className="tc-head">A₀</td>
-              {varNames.map((_, j) => (
+              {activeVarNames.map((_, j) => (
                 <td
                   key={j}
                   className={[
@@ -151,35 +157,30 @@ function IterationBlock({
             {tableau.map((row, i) => {
               const bIdx = basis[i];
               const isLeaving = i === pivotRow && !isOptimal;
-              const isPivotRow = i === pivotRow && !isOptimal;
-
               return (
                 <tr
                   key={i}
                   className={[
-                    isLeaving ? "tr-leaving" : "",
-                    isPivotRow ? "tr-pivot-row" : "",
+                    isLeaving ? "tr-leaving tr-pivot-row" : "",
                     i === pivotRow - 1 && !isOptimal ? "tr-pivot-row-prev" : "",
                   ]
                     .filter(Boolean)
                     .join(" ")}
                 >
-                  <td className="tc-cb">{fmt(cjDisplay[bIdx] ?? 0)}</td>
+                  <td className="tc-cb">
+                    {typeof cjDisplay[bIdx] === "string"
+                      ? cjDisplay[bIdx]
+                      : fmt(cjDisplay[bIdx] ?? 0)}
+                  </td>
                   <td
                     className={["tc-basis", isLeaving ? "tc-basis-leave" : ""]
                       .filter(Boolean)
                       .join(" ")}
                   >
-                    <VarName name={varNames[bIdx]} />
+                    <VarName name={activeVarNames[bIdx]} />
                     {isLeaving && <span className="leave-arrow"> ←</span>}
                   </td>
-                  <td
-                    className={["tc-rhs", entCol === -1 ? "" : ""]
-                      .filter(Boolean)
-                      .join(" ")}
-                  >
-                    {fmt(row[total])}
-                  </td>
+                  <td className="tc-rhs">{fmt(row[total])}</td>
                   {Array.from({ length: total }, (_, j) => {
                     const isPivot =
                       i === pivotRow && j === entCol && !isOptimal;
@@ -258,14 +259,14 @@ function IterationBlock({
             <sub style={{ fontSize: "0.7em" }}>{entCol + 1}</sub> ={" "}
             {fmt(delta[entCol])}), змінна що входить у базис —{" "}
             <strong>
-              <VarName name={varNames[entCol]} />
+              <VarName name={activeVarNames[entCol]} />
             </strong>
             .
           </div>
           <div>
             Напрямний рядок —{" "}
             <strong>
-              <VarName name={varNames[basis[pivotRow]]} />
+              <VarName name={activeVarNames[basis[pivotRow]]} />
             </strong>{" "}
             (за найменшим з відношень — min(
             {ratios
@@ -278,7 +279,7 @@ function IterationBlock({
               .join("; ")}
             ) = {fmt(tableau[pivotRow][total] / pivEl)}). Змінна{" "}
             <strong>
-              <VarName name={varNames[basis[pivotRow]]} />
+              <VarName name={activeVarNames[basis[pivotRow]]} />
             </strong>{" "}
             виводиться з базису.
           </div>

@@ -21,16 +21,7 @@ export function fmt(n) {
   return n.toFixed(4).replace(/\.?0+$/, "");
 }
 
-function buildDeltaCalcs(
-  tableau,
-  basis,
-  cjComp,
-  varNames,
-  delta,
-  z0,
-  m,
-  total,
-) {
+function buildDeltaCalcs(tableau, basis, cjComp, delta, z0, total) {
   const calcs = [];
   const terms0 = basis.map(
     (bIdx, i) => `${fmt(cjComp[bIdx])} · ${fmt(tableau[i][total])}`,
@@ -40,13 +31,12 @@ function buildDeltaCalcs(
     const terms = basis.map(
       (bIdx, i) => `${fmt(cjComp[bIdx])} · ${fmt(tableau[i][j])}`,
     );
-    const sub = terms.join(" + ");
     const cVal = cjComp[j];
     const suffix =
       Math.abs(cVal) > 1e-9
-        ? ` - ${fmt(cVal)} = ${fmt(delta[j])}`
+        ? ` - (${fmt(cVal)}) = ${fmt(delta[j])}`
         : ` = ${fmt(delta[j])}`;
-    calcs.push({ label: `Δ${j + 1}`, expr: sub + suffix });
+    calcs.push({ label: `Δ${j + 1}`, expr: terms.join(" + ") + suffix });
   }
   return calcs;
 }
@@ -54,161 +44,205 @@ function buildDeltaCalcs(
 export function solveSimplex(objCoefs, constraints, objType) {
   const n = objCoefs.length;
   const m = constraints.length;
-  const total = n + m;
-  const varNames = Array.from({ length: total }, (_, i) => `x${i + 1}`);
-  const cjDisplay = [...objCoefs, ...Array(m).fill(0)];
-  const cjComp = [
-    ...objCoefs.map((c) => (objType === "max" ? c : -c)),
-    ...Array(m).fill(0),
-  ];
 
-  let tableau = [];
-  let basis = [];
+  // Нормалізація: >= з від'ємним RHS → множимо на -1 → стає <=
+  // >= з додатнім RHS → помилка (потрібен штучний базис)
+  const normConstraints = constraints.map((c, idx) => {
+    let coefs = c.coefs.map(Number);
+    let rhs = Number(c.rhs);
+    let sign = c.sign;
+
+    if (sign === "=") {
+      throw new Error(
+        `Обмеження ${idx + 1}: знак "=" не підтримується. Використовуйте лише ≤.`,
+      );
+    }
+
+    if (sign === ">=") {
+      if (rhs <= 0) {
+        // множимо на -1: >= від'ємного → <= додатнього
+        coefs = coefs.map((v) => -v);
+        rhs = -rhs;
+        sign = "<=";
+      } else {
+        throw new Error(
+          `Обмеження ${idx + 1}: знак "≥" з додатньою правою частиною не підтримується методом симплекс-таблиць. Використовуйте лише ≤.`,
+        );
+      }
+    }
+
+    if (rhs < 0) {
+      throw new Error(
+        `Обмеження ${idx + 1}: права частина має бути невід'ємною після нормалізації.`,
+      );
+    }
+
+    return { coefs, sign, rhs };
+  });
+
+  const numSlack = m;
+  const totalVars = n + numSlack;
+
+  const varNames = Array.from({ length: totalVars }, (_, j) => `x${j + 1}`);
+
+  const tableau = [];
+  const basis = [];
 
   for (let i = 0; i < m; i++) {
-    const row = new Array(total + 1).fill(0);
-    const { coefs, sign, rhs } = constraints[i];
-    for (let j = 0; j < n; j++) row[j] = Number(coefs[j]);
-    row[n + i] = sign === ">=" ? -1 : 1;
-    row[total] = Number(rhs);
-
-    if (row[total] < 0) {
-      for (let k = 0; k <= total; k++) row[k] *= -1;
-    }
+    const row = new Array(totalVars + 1).fill(0);
+    for (let j = 0; j < n; j++) row[j] = normConstraints[i].coefs[j];
+    row[n + i] = 1;
+    row[totalVars] = normConstraints[i].rhs;
     tableau.push(row);
     basis.push(n + i);
   }
 
-  const computeDelta = (currTableau, currBasis) => {
+  const initialBFS = {};
+  varNames.forEach((name) => {
+    initialBFS[name] = 0;
+  });
+  for (let i = 0; i < m; i++)
+    initialBFS[varNames[basis[i]]] = tableau[i][totalVars];
+
+  const canonicalInfo = {
+    decisionNames: varNames.slice(0, n),
+    slackNames: varNames.slice(n),
+    artNames: [],
+    allNames: [...varNames],
+    cjDisplay: [...objCoefs.map(Number), ...Array(numSlack).fill(0)],
+    constraints: tableau.map((row) => ({
+      coefs: row.slice(0, totalVars),
+      rhs: row[totalVars],
+    })),
+    initialBFS,
+    normConstraints,
+  };
+
+  const cjComp = new Array(totalVars).fill(0);
+  for (let j = 0; j < n; j++) {
+    cjComp[j] = objType === "max" ? Number(objCoefs[j]) : -Number(objCoefs[j]);
+  }
+
+  const cjDisplay = varNames.map((_, j) => (j < n ? Number(objCoefs[j]) : 0));
+
+  const computeDelta = (currTableau, currBasis, varsCount) => {
     let z0 = 0;
-    const zj = new Array(total).fill(0);
-    for (let i = 0; i < m; i++) {
-      const cb = cjComp[currBasis[i]];
-      z0 += cb * currTableau[i][total];
-      for (let j = 0; j < total; j++) zj[j] += cb * currTableau[i][j];
+    const zj = new Array(varsCount).fill(0);
+    for (let i = 0; i < currTableau.length; i++) {
+      const cb = cjComp[currBasis[i]] ?? 0;
+      z0 += cb * currTableau[i][varsCount];
+      for (let j = 0; j < varsCount; j++) zj[j] += cb * currTableau[i][j];
     }
-    const delta = zj.map((z, j) => z - cjComp[j]);
-    return { delta, z0 };
+    return { delta: zj.map((z, j) => z - cjComp[j]), z0 };
   };
 
   const steps = [];
 
-  const snapshot = (
-    pivEnt = null,
-    pivLev = null,
-    pRow = -1,
-    pCol = -1,
-    pEl = null,
-  ) => {
-    const { delta, z0 } = computeDelta(tableau, basis);
+  const takeSnapshot = (currTableau, currBasis) => {
+    const varsCount = currTableau[0].length - 1;
+    const { delta, z0 } = computeDelta(currTableau, currBasis, varsCount);
     const deltaCalcs = buildDeltaCalcs(
-      tableau,
-      basis,
+      currTableau,
+      currBasis,
       cjComp,
-      varNames,
       delta,
       z0,
-      m,
-      total,
+      varsCount,
     );
 
     let enteringCol = null;
-    let displayPivRow = -1;
+    let pivotRow = -1;
     let ratios = null;
 
-    let minD = -1e-9;
-    for (let j = 0; j < total; j++) {
-      if (!basis.includes(j) && delta[j] < minD) {
-        minD = delta[j];
+    for (let j = 0; j < varsCount; j++) {
+      if (!currBasis.includes(j) && delta[j] < -1e-9) {
         enteringCol = j;
+        break;
       }
     }
 
     if (enteringCol !== null) {
-      ratios = tableau.map((row) =>
-        row[enteringCol] > 1e-9 ? row[total] / row[enteringCol] : null,
+      ratios = currTableau.map((row) =>
+        row[enteringCol] > 1e-9 ? row[varsCount] / row[enteringCol] : null,
       );
       let minR = Infinity;
-      for (let i = 0; i < m; i++) {
-        if (tableau[i][enteringCol] > 1e-9) {
-          const r = tableau[i][total] / tableau[i][enteringCol];
+      for (let i = 0; i < currTableau.length; i++) {
+        if (currTableau[i][enteringCol] > 1e-9) {
+          const r = currTableau[i][varsCount] / currTableau[i][enteringCol];
           if (r < minR - 1e-9) {
             minR = r;
-            displayPivRow = i;
+            pivotRow = i;
           }
         }
       }
     }
 
     steps.push({
-      tableau: tableau.map((r) => [...r]),
-      basis: [...basis],
+      tableau: currTableau.map((r) => [...r]),
+      basis: [...currBasis],
       delta: [...delta],
       z0,
-      varNames: [...varNames],
-      cjDisplay: [...cjDisplay],
-      cjComp: [...cjComp],
+      varNames: varNames.slice(0, varsCount),
+      cjDisplay: cjDisplay.slice(0, varsCount),
+      cjComp: cjComp.slice(0, varsCount),
       deltaCalcs,
       enteringCol,
-      pivotRow: displayPivRow,
+      pivotRow,
       ratios,
-      pivEntering: pivEnt,
-      pivLeaving: pivLev,
-      pivEl: pEl,
     });
   };
 
-  snapshot();
+  takeSnapshot(tableau, basis);
 
-  for (let iter = 0; iter < 50; iter++) {
-    const { delta } = computeDelta(tableau, basis);
+  for (let iter = 0; iter < 200; iter++) {
+    const { delta } = computeDelta(tableau, basis, totalVars);
+
     let pivCol = -1;
-    let minD = -1e-9;
-
-    for (let j = 0; j < total; j++) {
-      if (!basis.includes(j) && delta[j] < minD) {
-        minD = delta[j];
+    for (let j = 0; j < totalVars; j++) {
+      if (!basis.includes(j) && delta[j] < -1e-9) {
         pivCol = j;
+        break;
       }
     }
-
     if (pivCol === -1) break;
 
     let pivRow = -1;
     let minRatio = Infinity;
     for (let i = 0; i < m; i++) {
       if (tableau[i][pivCol] > 1e-9) {
-        const r = tableau[i][total] / tableau[i][pivCol];
-        if (r < minRatio - 1e-9) {
+        const r = tableau[i][totalVars] / tableau[i][pivCol];
+        if (Math.abs(r - minRatio) < 1e-9) {
+          if (pivRow === -1 || basis[i] < basis[pivRow]) pivRow = i;
+        } else if (r < minRatio - 1e-9) {
           minRatio = r;
           pivRow = i;
         }
       }
     }
 
-    if (pivRow === -1) throw new Error("Задача НЕОБМЕЖЕНА.");
+    if (pivRow === -1)
+      throw new Error(
+        "Цільова функція не обмежена на множині допустимих розв'язків (Unbounded).",
+      );
 
-    const leavingVar = basis[pivRow];
     const pivEl = tableau[pivRow][pivCol];
-
-    for (let j = 0; j <= total; j++) tableau[pivRow][j] /= pivEl;
+    for (let j = 0; j <= totalVars; j++) tableau[pivRow][j] /= pivEl;
     for (let i = 0; i < m; i++) {
       if (i === pivRow) continue;
-      const f = tableau[i][pivCol];
-      for (let j = 0; j <= total; j++) tableau[i][j] -= f * tableau[pivRow][j];
+      const factor = tableau[i][pivCol];
+      for (let j = 0; j <= totalVars; j++)
+        tableau[i][j] -= factor * tableau[pivRow][j];
     }
-
     basis[pivRow] = pivCol;
-    snapshot(pivCol, leavingVar, pivRow, pivCol, pivEl);
+
+    takeSnapshot(tableau, basis);
   }
 
-  const { delta: fd, z0 } = computeDelta(tableau, basis);
-  const isOptimal = fd.every((d, j) => basis.includes(j) || d >= -1e-7);
-  if (!isOptimal) throw new Error("Розв'язок не збігся. Перевірте задачу.");
+  const { z0 } = computeDelta(tableau, basis, totalVars);
 
   const xSol = new Array(n).fill(0);
   for (let i = 0; i < m; i++) {
-    if (basis[i] < n) xSol[basis[i]] = tableau[i][total];
+    if (basis[i] < n) xSol[basis[i]] = tableau[i][totalVars];
   }
 
   return {
@@ -216,7 +250,8 @@ export function solveSimplex(objCoefs, constraints, objType) {
     xSol,
     fval: objType === "max" ? z0 : -z0,
     objType,
-    varNames,
+    varNames: varNames.slice(0, totalVars),
     n,
+    canonicalInfo,
   };
 }

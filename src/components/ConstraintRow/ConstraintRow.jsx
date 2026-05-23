@@ -15,8 +15,8 @@ const VarName = ({ name }) => {
   return <span>{name}</span>;
 };
 
-const SIGN_CYCLE = ["<=", ">=", "="];
-const SIGN_LABELS = { "<=": "≤", ">=": "≥", "=": "=" };
+const SIGNS = ["<=", ">="];
+const SIGN_LABELS = { "<=": "≤", ">=": "≥" };
 
 export default function ConstraintRow({
   index,
@@ -31,39 +31,68 @@ export default function ConstraintRow({
   canDelete,
 }) {
   const cycleSign = () => {
-    const idx = SIGN_CYCLE.indexOf(sign);
-    onSignChange(SIGN_CYCLE[(idx + 1) % SIGN_CYCLE.length]);
+    const idx = SIGNS.indexOf(sign);
+    onSignChange(SIGNS[(idx + 1) % SIGNS.length]);
   };
 
+  const signInvalid = sign === ">=" && Number(rhs) > 0;
+
   return (
-    <div className="constraint-row">
-      <span className="constraint-row__idx">{index + 1}.</span>
-      {Array.from({ length: numVars }, (_, j) => (
-        <span key={j} style={{ display: "contents" }}>
-          {j > 0 && <span className="con-sep">+</span>}
-          <div className="con-input-wrap">
-            <NumInput
-              value={coefs[j] ?? 0}
-              onChange={(val) => onCoefChange(j, val)}
-              className="con-num"
-            />
-            <span className="con-var-label">
-              <VarName name={`x${j + 1}`} />
-            </span>
-          </div>
-        </span>
-      ))}
-      <button className="con-sign-btn" onClick={cycleSign}>
-        {SIGN_LABELS[sign] ?? sign}
-      </button>
-      <NumInput
-        value={rhs}
-        onChange={(val) => onRhsChange(val)}
-        className="con-num"
-      />
-      <button className="con-del-btn" onClick={onDelete} disabled={!canDelete}>
-        ×
-      </button>
-    </div>
+    <>
+      <div className="constraint-row">
+        <span className="constraint-row__idx">{index + 1}.</span>
+        {Array.from({ length: numVars }, (_, j) => (
+          <span key={j} style={{ display: "contents" }}>
+            {j > 0 && <span className="con-sep">+</span>}
+            <div className="con-input-wrap">
+              <NumInput
+                value={coefs[j] ?? 0}
+                onChange={(val) => onCoefChange(j, val)}
+                className="con-num"
+              />
+              <span className="con-var-label">
+                <VarName name={`x${j + 1}`} />
+              </span>
+            </div>
+          </span>
+        ))}
+        <button
+          className="con-sign-btn"
+          onClick={cycleSign}
+          style={
+            signInvalid
+              ? { color: "var(--danger)", borderColor: "var(--danger)" }
+              : {}
+          }
+        >
+          {SIGN_LABELS[sign] ?? sign}
+        </button>
+        <NumInput
+          value={rhs}
+          onChange={(val) => onRhsChange(val)}
+          className="con-num"
+        />
+        <button
+          className="con-del-btn"
+          onClick={onDelete}
+          disabled={!canDelete}
+        >
+          ×
+        </button>
+      </div>
+      {signInvalid && (
+        <div
+          style={{
+            fontSize: 10,
+            color: "var(--danger)",
+            paddingLeft: 16,
+            marginTop: -4,
+            marginBottom: 4,
+          }}
+        >
+          ≥ з додатнім значенням не підтримується. Введіть від'ємне значення.
+        </div>
+      )}
+    </>
   );
 }

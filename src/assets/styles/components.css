@@ -646,9 +646,9 @@ thead tr:first-child .tc-pivot-col {
   margin-bottom: 8px;
 }
 .delta-calcs__list {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(270px, 1fr));
-  gap: 1px 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
 }
 .delta-row {
   display: flex;
@@ -959,4 +959,24 @@ thead tr:first-child .tc-pivot-col {
 }
 .bfs-item {
   color: var(--ice);
+}
+
+.iter-phase-badge {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  padding: 3px 8px;
+  border-radius: var(--r-xs);
+  font-weight: 600;
+}
+.iter-phase-badge.phase-1 {
+  background: rgba(255, 179, 64, 0.15);
+  border: 1px solid rgba(255, 179, 64, 0.35);
+  color: #ffb340;
+}
+.iter-phase-badge.phase-2 {
+  background: rgba(126, 252, 235, 0.15);
+  border: 1px solid rgba(126, 252, 235, 0.35);
+  color: var(--aurora);
 }

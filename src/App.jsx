@@ -188,11 +188,13 @@ export default function App() {
         </aside>
 
         <main className="main">
-          <ProblemDisplay
-            problem={problem}
-            result={result}
-            hasSolved={hasSolved}
-          />
+          {!error && (
+            <ProblemDisplay
+              problem={problem}
+              result={result}
+              hasSolved={hasSolved}
+            />
+          )}
           <AllIterations result={result} error={error} solving={solving} />
           <ResultPanel result={result} />
         </main>

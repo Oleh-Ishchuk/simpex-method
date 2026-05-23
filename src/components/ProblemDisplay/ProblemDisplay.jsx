@@ -15,18 +15,16 @@ const VarName = ({ name }) => {
   return <span>{name}</span>;
 };
 
-const VarList = ({ names }) => {
-  return (
-    <>
-      {names.map((name, i) => (
-        <React.Fragment key={name}>
-          <VarName name={name} />
-          {i < names.length - 1 ? ", " : ""}
-        </React.Fragment>
-      ))}
-    </>
-  );
-};
+const VarList = ({ names }) => (
+  <>
+    {names.map((name, i) => (
+      <React.Fragment key={name}>
+        <VarName name={name} />
+        {i < names.length - 1 ? ", " : ""}
+      </React.Fragment>
+    ))}
+  </>
+);
 
 function getGCD(a, b) {
   a = Math.abs(Math.round(a));
@@ -45,32 +43,24 @@ function getRowGCD(c) {
 
 function renderLHS(coefs, names, options = {}) {
   const { showZeros = false, slackStartIdx = 999 } = options;
+  const parts = coefs
+    .map((cRaw, i) => {
+      const c = Number(cRaw);
+      if (!showZeros && Math.abs(c) < 1e-9) return null;
+      return { val: c, name: names[i], isSlack: i >= slackStartIdx };
+    })
+    .filter(Boolean);
 
-  const parts = coefs.map((cRaw, i) => {
-    const c = Number(cRaw);
-    if (!showZeros && Math.abs(c) < 1e-9) return null;
-    return { val: c, name: names[i], isSlack: i >= slackStartIdx };
-  });
-
-  const visible = parts.filter((p) => p !== null);
-  if (visible.length === 0) return <span>0</span>;
+  if (parts.length === 0) return <span>0</span>;
 
   return (
     <>
-      {visible.map((p, idx) => {
+      {parts.map((p, idx) => {
         const isFirst = idx === 0;
         const abs = Math.abs(p.val);
         const sign = p.val < 0 ? "−" : "+";
-
-        let coefStr = "";
-        if (abs === 0) {
-          coefStr = "0";
-        } else if (abs === 1) {
-          coefStr = p.isSlack ? "1" : "";
-        } else {
-          coefStr = fmt(abs);
-        }
-
+        const coefStr =
+          abs === 0 ? "0" : abs === 1 && !p.isSlack ? "" : fmt(abs);
         return (
           <span key={idx}>
             {isFirst ? (
@@ -99,7 +89,6 @@ function ThinBrace({ numRows }) {
   const ROW_H = 34;
   const h = Math.max(numRows * ROW_H, ROW_H);
   const mid = h / 2;
-
   return (
     <svg
       width="18"
@@ -120,7 +109,6 @@ function ThinBrace({ numRows }) {
 }
 
 function ConstraintBlock({ constraints, varNames, rowGcds = [] }) {
-  const numRows = constraints.length + 1;
   const monoStyle = {
     fontSize: 18,
     lineHeight: "34px",
@@ -128,12 +116,11 @@ function ConstraintBlock({ constraints, varNames, rowGcds = [] }) {
     color: "var(--text-1)",
     fontFamily: "'Cambria Math','Times New Roman',serif",
   };
-
   return (
     <div
       style={{ display: "flex", alignItems: "center", margin: "6px 0 6px 4px" }}
     >
-      <ThinBrace numRows={numRows} />
+      <ThinBrace numRows={constraints.length + 1} />
       <div style={{ display: "flex", flexDirection: "column", paddingLeft: 8 }}>
         {constraints.map((c, i) => {
           const divBy = rowGcds[i] || 1;
@@ -164,7 +151,6 @@ function CanonicalBlock({
 }) {
   const allNames = [...decisionNames, ...slackNames];
   const m = constraints.length;
-  const numRows = m + 1;
   const monoStyle = {
     fontSize: 18,
     lineHeight: "34px",
@@ -172,23 +158,20 @@ function CanonicalBlock({
     color: "var(--text-1)",
     fontFamily: "'Cambria Math','Times New Roman',serif",
   };
-
   return (
     <div
       style={{ display: "flex", alignItems: "center", margin: "6px 0 6px 4px" }}
     >
-      <ThinBrace numRows={numRows} />
+      <ThinBrace numRows={m + 1} />
       <div style={{ display: "flex", flexDirection: "column", paddingLeft: 8 }}>
         {constraints.map((c, i) => {
           const divBy = rowGcds[i] || 1;
-          const slackVal = 1;
           const slack = Array(m).fill(0);
-          slack[i] = slackVal;
+          slack[i] = 1;
           const fullCoefs = [
             ...c.coefs.map((v) => Number(v) / divBy),
             ...slack,
           ];
-
           return (
             <div key={i} style={monoStyle}>
               {renderLHS(fullCoefs, allNames, {
@@ -219,19 +202,12 @@ export default function ProblemDisplay({ problem, result, hasSolved }) {
     { length: constraints.length },
     (_, i) => `x${numVars + i + 1}`,
   );
-  const allNames = [...decisionNames, ...slackNames];
 
   const rowGcds = constraints.map(getRowGCD);
   const simplifyInfo = rowGcds
     .map((g, i) => (g > 1 ? { rowIdx: i + 1, g } : null))
     .filter(Boolean);
   const canSimplify = simplifyInfo.length > 0;
-
-  const normalizationInfo = constraints
-    .map((c, i) => (Number(c.rhs) < 0 || c.sign === ">=" ? i + 1 : null))
-    .filter(Boolean);
-  const needsNormalization = normalizationInfo.length > 0;
-  const isAlreadyCanonical = constraints.every((c) => c.sign !== ">=") && !needsNormalization;
 
   const extObjCoefs = [
     ...objCoefs.map(Number),
@@ -286,48 +262,43 @@ export default function ProblemDisplay({ problem, result, hasSolved }) {
           </div>
         )}
 
+        {hasSolved &&
+          constraints.some((c) => c.sign === ">=" && Number(c.rhs) <= 0) && (
+            <div className="math-step">
+              <div className="step-text">
+                Оскільки є обмеження зі знаком "≥" та від'ємною правою частиною,
+                помножимо їх на −1 (змінивши знак нерівності):
+              </div>
+              <ConstraintBlock
+                constraints={constraints.map((c) =>
+                  c.sign === ">=" && Number(c.rhs) <= 0
+                    ? {
+                        ...c,
+                        coefs: c.coefs.map((v) => -v),
+                        rhs: -c.rhs,
+                        sign: "<=",
+                      }
+                    : c,
+                )}
+                varNames={decisionNames}
+                rowGcds={[]}
+              />
+            </div>
+          )}
+
         {hasSolved && (
           <div className="math-step">
             <div className="step-text" style={{ marginBottom: 24 }}>
-              {isAlreadyCanonical
-                ? "Математичну модель задачі приведено до канонічного вигляду."
-                : "Математичну модель задачі приведемо до канонічного вигляду."}
+              Математичну модель задачі приведено до канонічного вигляду.
             </div>
           </div>
         )}
 
-        {hasSolved && needsNormalization && (
-          <div
-            className="math-step"
-            style={{ marginTop: 0, borderTop: "none", paddingTop: 0 }}
-          >
-            <div className="step-text">
-              Оскільки в системі обмежень є знаки "≥" або від'ємні вільні члени,
-              помножимо нерівність {normalizationInfo.join(", ")} на −1 (змінивши
-              знаки нерівностей):
-            </div>
-            <ConstraintBlock
-              constraints={constraints.map((c) =>
-                Number(c.rhs) < 0 || c.sign === ">="
-                  ? {
-                      ...c,
-                      coefs: c.coefs.map((v) => -v),
-                      rhs: -c.rhs,
-                      sign:
-                        c.sign === "<=" ? ">=" : c.sign === ">=" ? "<=" : "=",
-                    }
-                  : c,
-              )}
-              varNames={decisionNames}
-              rowGcds={rowGcds}
-            />
-          </div>
-        )}
-
-        {hasSolved && (
+        {hasSolved && result && result.canonicalInfo && (
           <div className="math-step">
             <div className="step-text">
-              Введемо вільні змінні (<VarList names={slackNames} />
+              Введемо вільні змінні (
+              <VarList names={result.canonicalInfo.slackNames} />
               ):
             </div>
 
@@ -337,55 +308,110 @@ export default function ProblemDisplay({ problem, result, hasSolved }) {
             >
               <span className="math-label">
                 F(
-                <VarList names={allNames} />) =
+                <VarList names={result.canonicalInfo.allNames} />) =
               </span>{" "}
-              {renderLHS(extObjCoefs, allNames, {
+              {renderLHS(
+                result.canonicalInfo.cjDisplay,
+                result.canonicalInfo.allNames,
+                {
+                  showZeros: true,
+                  slackStartIdx: result.canonicalInfo.decisionNames.length,
+                },
+              )}{" "}
+              → <em className="math-type">{objType}</em>
+            </div>
+
+            <div
+              style={{
+                display: "flex",
+                alignItems: "center",
+                margin: "6px 0 6px 4px",
+              }}
+            >
+              <ThinBrace
+                numRows={result.canonicalInfo.constraints.length + 1}
+              />
+              <div
+                style={{
+                  display: "flex",
+                  flexDirection: "column",
+                  paddingLeft: 8,
+                }}
+              >
+                {result.canonicalInfo.constraints.map((c, i) => (
+                  <div
+                    key={i}
+                    style={{
+                      ...monoStyle,
+                      fontSize: 18,
+                      lineHeight: "34px",
+                      whiteSpace: "nowrap",
+                    }}
+                  >
+                    {renderLHS(c.coefs, result.canonicalInfo.allNames, {
+                      showZeros: true,
+                      slackStartIdx: result.canonicalInfo.decisionNames.length,
+                    })}
+                    <span style={{ margin: "0 7px" }}>= {fmt(c.rhs)}</span>
+                  </div>
+                ))}
+                <div
+                  style={{
+                    ...monoStyle,
+                    fontSize: 18,
+                    lineHeight: "34px",
+                    whiteSpace: "nowrap",
+                  }}
+                >
+                  <VarList names={result.canonicalInfo.allNames} /> ≥ 0
+                </div>
+              </div>
+            </div>
+
+            <div className="step-text" style={{ marginTop: 24 }}>
+              Початковий допустимий базисний розв'язок задачі:
+            </div>
+
+            <div className="bfs-row">
+              {result.canonicalInfo.allNames.map((v, i) => {
+                const val = result.canonicalInfo.initialBFS[v] ?? 0;
+                return (
+                  <span key={v} className="bfs-item">
+                    <VarName name={v} /> = {fmt(val)}
+                    {i < result.canonicalInfo.allNames.length - 1 ? ", " : ""}
+                  </span>
+                );
+              })}
+            </div>
+          </div>
+        )}
+
+        {hasSolved && (!result || !result.canonicalInfo) && (
+          <div className="math-step">
+            <div className="step-text">
+              Введемо вільні змінні (<VarList names={slackNames} />
+              ):
+            </div>
+            <div
+              style={{ ...monoStyle, fontSize: 18, marginBottom: 16 }}
+              className="math-formulation__objective"
+            >
+              <span className="math-label">
+                F(
+                <VarList names={[...decisionNames, ...slackNames]} />) =
+              </span>{" "}
+              {renderLHS(extObjCoefs, [...decisionNames, ...slackNames], {
                 showZeros: true,
                 slackStartIdx: decisionNames.length,
               })}{" "}
               → <em className="math-type">{objType}</em>
             </div>
-
             <CanonicalBlock
-              constraints={constraints.map((c) =>
-                Number(c.rhs) < 0 || c.sign === ">="
-                  ? {
-                      ...c,
-                      coefs: c.coefs.map((v) => -v),
-                      rhs: -c.rhs,
-                      sign:
-                        c.sign === "<=" ? ">=" : c.sign === ">=" ? "<=" : "=",
-                    }
-                  : c,
-              )}
+              constraints={constraints}
               decisionNames={decisionNames}
               slackNames={slackNames}
               rowGcds={rowGcds}
             />
-
-            <div className="step-text" style={{ marginTop: 24 }}>
-              Початковий допустимий базисний розв'язок:
-            </div>
-
-            <div className="bfs-row">
-              {allNames.map((v, i) => {
-                const isDecision = i < numVars;
-                let val = 0;
-                if (!isDecision) {
-                  const slackIdx = i - numVars;
-                  const c = constraints[slackIdx];
-                  const divBy = rowGcds[slackIdx] || 1;
-                  val = Number(c.rhs) / divBy;
-                  const needsFlip = (c.sign === ">=") !== (Number(c.rhs) < 0);
-                  if (needsFlip) val = -val;
-                }
-                return (
-                  <span key={v} className="bfs-item">
-                    <VarName name={v} /> = {fmt(val)}
-                  </span>
-                );
-              })}
-            </div>
           </div>
         )}
       </div>
