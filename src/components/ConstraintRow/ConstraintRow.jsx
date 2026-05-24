@@ -1,19 +1,6 @@
 import NumInput from "../common/NumInput";
 import React from "react";
-
-const VarName = ({ name }) => {
-  if (typeof name !== "string") return name;
-  const match = name.match(/^([a-zA-Z]+)(\d+)$/);
-  if (match) {
-    return (
-      <span>
-        {match[1]}
-        <sub style={{ fontSize: "0.75em" }}>{match[2]}</sub>
-      </span>
-    );
-  }
-  return <span>{name}</span>;
-};
+import { VarName } from "../../utils/renderMath";
 
 const SIGNS = ["<=", ">="];
 const SIGN_LABELS = { "<=": "≤", ">=": "≥" };

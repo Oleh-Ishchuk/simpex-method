@@ -1,114 +1,14 @@
 import React from "react";
-import { fmt } from "../../utils/simplex";
+import { fmt, getRowScaleInfo } from "../../utils/math";
+import {
+  VarName,
+  VarList,
+  renderLHS,
+  signLabel,
+  ThinBrace,
+} from "../../utils/renderMath";
 
-const VarName = ({ name }) => {
-  if (typeof name !== "string") return name;
-  const match = name.match(/^([a-zA-Z]+)(\d+)$/);
-  if (match) {
-    return (
-      <span>
-        {match[1]}
-        <sub style={{ fontSize: "0.75em" }}>{match[2]}</sub>
-      </span>
-    );
-  }
-  return <span>{name}</span>;
-};
-
-const VarList = ({ names }) => (
-  <>
-    {names.map((name, i) => (
-      <React.Fragment key={name}>
-        <VarName name={name} />
-        {i < names.length - 1 ? ", " : ""}
-      </React.Fragment>
-    ))}
-  </>
-);
-
-function getGCD(a, b) {
-  a = Math.abs(Math.round(a));
-  b = Math.abs(Math.round(b));
-  return b === 0 ? a : getGCD(b, a % b);
-}
-
-function getRowGCD(c) {
-  let g = 0;
-  for (const v of [...c.coefs, c.rhs]) {
-    const n = Math.abs(Number(v));
-    if (n > 1e-9) g = getGCD(g, n);
-  }
-  return g || 1;
-}
-
-function renderLHS(coefs, names, options = {}) {
-  const { showZeros = false, slackStartIdx = 999 } = options;
-  const parts = coefs
-    .map((cRaw, i) => {
-      const c = Number(cRaw);
-      if (!showZeros && Math.abs(c) < 1e-9) return null;
-      return { val: c, name: names[i], isSlack: i >= slackStartIdx };
-    })
-    .filter(Boolean);
-
-  if (parts.length === 0) return <span>0</span>;
-
-  return (
-    <>
-      {parts.map((p, idx) => {
-        const isFirst = idx === 0;
-        const abs = Math.abs(p.val);
-        const sign = p.val < 0 ? "−" : "+";
-        const coefStr =
-          abs === 0 ? "0" : abs === 1 && !p.isSlack ? "" : fmt(abs);
-        return (
-          <span key={idx}>
-            {isFirst ? (
-              p.val < 0 ? (
-                "−"
-              ) : (
-                ""
-              )
-            ) : (
-              <span style={{ margin: "0 5px" }}>{sign}</span>
-            )}
-            {coefStr}
-            <VarName name={p.name} />
-          </span>
-        );
-      })}
-    </>
-  );
-}
-
-function signLabel(s) {
-  return s === "<=" ? "≤" : s === ">=" ? "≥" : "=";
-}
-
-function ThinBrace({ numRows }) {
-  const ROW_H = 34;
-  const h = Math.max(numRows * ROW_H, ROW_H);
-  const mid = h / 2;
-  return (
-    <svg
-      width="18"
-      height={h}
-      viewBox={`0 0 18 ${h}`}
-      fill="none"
-      style={{ flexShrink: 0, alignSelf: "stretch", display: "block" }}
-    >
-      <path
-        d={`M13,4 Q5,4 5,${mid - 5} Q5,${mid} 2,${mid} Q5,${mid} 5,${mid + 5} Q5,${h - 4} 13,${h - 4}`}
-        stroke="var(--text-2)"
-        strokeWidth="1"
-        fill="none"
-        strokeLinejoin="round"
-      />
-    </svg>
-  );
-}
-
-function ConstraintBlock({ constraints, varNames, rowGcds = [] }) {
+function ConstraintBlock({ constraints, varNames, rowScales = [] }) {
   const monoStyle = {
     fontSize: 18,
     lineHeight: "34px",
@@ -123,9 +23,9 @@ function ConstraintBlock({ constraints, varNames, rowGcds = [] }) {
       <ThinBrace numRows={constraints.length + 1} />
       <div style={{ display: "flex", flexDirection: "column", paddingLeft: 8 }}>
         {constraints.map((c, i) => {
-          const divBy = rowGcds[i] || 1;
-          const coefs = c.coefs.map((v) => Number(v) / divBy);
-          const rhs = Number(c.rhs) / divBy;
+          const scale = rowScales[i]?.factor ?? 1;
+          const coefs = c.coefs.map((v) => Number(v) * scale);
+          const rhs = Number(c.rhs) * scale;
           return (
             <div key={i} style={monoStyle}>
               {renderLHS(coefs, varNames)}
@@ -147,7 +47,7 @@ function CanonicalBlock({
   constraints,
   decisionNames,
   slackNames,
-  rowGcds = [],
+  rowScales = [],
 }) {
   const allNames = [...decisionNames, ...slackNames];
   const m = constraints.length;
@@ -165,11 +65,11 @@ function CanonicalBlock({
       <ThinBrace numRows={m + 1} />
       <div style={{ display: "flex", flexDirection: "column", paddingLeft: 8 }}>
         {constraints.map((c, i) => {
-          const divBy = rowGcds[i] || 1;
+          const scale = rowScales[i]?.factor ?? 1;
           const slack = Array(m).fill(0);
           slack[i] = 1;
           const fullCoefs = [
-            ...c.coefs.map((v) => Number(v) / divBy),
+            ...c.coefs.map((v) => Number(v) * scale),
             ...slack,
           ];
           return (
@@ -179,7 +79,7 @@ function CanonicalBlock({
                 slackStartIdx: decisionNames.length,
               })}
               <span style={{ margin: "0 7px" }}>
-                = {fmt(Number(c.rhs) / divBy)}
+                = {fmt(Number(c.rhs) * scale)}
               </span>
             </div>
           );
@@ -203,9 +103,9 @@ export default function ProblemDisplay({ problem, result, hasSolved }) {
     (_, i) => `x${numVars + i + 1}`,
   );
 
-  const rowGcds = constraints.map(getRowGCD);
-  const simplifyInfo = rowGcds
-    .map((g, i) => (g > 1 ? { rowIdx: i + 1, g } : null))
+  const rowScales = constraints.map(getRowScaleInfo);
+  const simplifyInfo = rowScales
+    .map((s, i) => (s.op ? { rowIdx: i + 1, op: s.op, by: s.by } : null))
     .filter(Boolean);
   const canSimplify = simplifyInfo.length > 0;
 
@@ -240,7 +140,7 @@ export default function ProblemDisplay({ problem, result, hasSolved }) {
           <ConstraintBlock
             constraints={constraints}
             varNames={decisionNames}
-            rowGcds={[]}
+            rowScales={[]}
           />
         </div>
 
@@ -249,15 +149,16 @@ export default function ProblemDisplay({ problem, result, hasSolved }) {
             <div className="step-text">
               {simplifyInfo.map((info, i) => (
                 <div key={i}>
-                  Спростимо систему обмежень, поділивши {info.rowIdx} нерівність
-                  на {info.g}.
+                  {info.op === "mul"
+                    ? `Домножимо ${info.rowIdx} нерівність на ${info.by}, щоб позбутися дробів.`
+                    : `Поділимо ${info.rowIdx} нерівність на ${info.by}.`}
                 </div>
               ))}
             </div>
             <ConstraintBlock
               constraints={constraints}
               varNames={decisionNames}
-              rowGcds={rowGcds}
+              rowScales={rowScales}
             />
           </div>
         )}
@@ -281,7 +182,7 @@ export default function ProblemDisplay({ problem, result, hasSolved }) {
                     : c,
                 )}
                 varNames={decisionNames}
-                rowGcds={[]}
+                rowScales={[]}
               />
             </div>
           )}
@@ -410,7 +311,7 @@ export default function ProblemDisplay({ problem, result, hasSolved }) {
               constraints={constraints}
               decisionNames={decisionNames}
               slackNames={slackNames}
-              rowGcds={rowGcds}
+              rowScales={rowScales}
             />
           </div>
         )}

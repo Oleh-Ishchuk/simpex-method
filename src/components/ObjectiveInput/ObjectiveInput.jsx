@@ -1,19 +1,6 @@
 import NumInput from "../common/NumInput";
 import React from "react";
-
-const VarName = ({ name }) => {
-  if (typeof name !== "string") return name;
-  const match = name.match(/^([a-zA-Z]+)(\d+)$/);
-  if (match) {
-    return (
-      <span>
-        {match[1]}
-        <sub style={{ fontSize: "0.75em" }}>{match[2]}</sub>
-      </span>
-    );
-  }
-  return <span>{name}</span>;
-};
+import { VarName } from "../../utils/renderMath";
 
 function renderPreview(text) {
   if (!text) return null;
@@ -50,7 +37,9 @@ export default function ObjectiveInput({
             </div>
           </span>
         ))}
-        <span className="arrow-sep">→ {objType === "max" ? "МАКС" : "МІН"}</span>
+        <span className="arrow-sep">
+          → {objType === "max" ? "МАКС" : "МІН"}
+        </span>
       </div>
       <div style={{ marginTop: 8 }}>
         <span className="obj-preview">{renderPreview(objPreview)}</span>

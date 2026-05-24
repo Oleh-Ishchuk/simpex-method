@@ -42,14 +42,16 @@ export function useSimplex() {
       return {
         ...p,
         numVars: next,
-        objCoefs: Array(next)
-          .fill(0)
-          .map((_, i) => p.objCoefs[i] ?? 0),
+        objCoefs:
+          delta > 0
+            ? [...p.objCoefs, ...Array(delta).fill(0)]
+            : p.objCoefs.slice(0, next),
         constraints: p.constraints.map((c) => ({
           ...c,
-          coefs: Array(next)
-            .fill(0)
-            .map((_, i) => c.coefs[i] ?? 0),
+          coefs:
+            delta > 0
+              ? [...c.coefs, ...Array(delta).fill(0)]
+              : c.coefs.slice(0, next),
         })),
       };
     });
@@ -57,95 +59,82 @@ export function useSimplex() {
 
   const setNumCons = useCallback((delta) => {
     setProblem((p) => {
-      const next = Math.min(6, Math.max(1, p.constraints.length + delta));
-      if (next === p.constraints.length) return p;
-      let cons = [...p.constraints];
-      while (cons.length < next) cons.push(makeDefaultConstraint(p.numVars));
-      return { ...p, constraints: cons.slice(0, next) };
+      if (delta > 0) {
+        return {
+          ...p,
+          constraints: [
+            ...p.constraints,
+            ...Array(delta)
+              .fill(null)
+              .map(() => makeDefaultConstraint(p.numVars)),
+          ],
+        };
+      } else {
+        const nextLen = Math.max(1, p.constraints.length + delta);
+        return { ...p, constraints: p.constraints.slice(0, nextLen) };
+      }
     });
   }, []);
 
-  const setConstraintCoef = useCallback((ri, ci, val) => {
-    setProblem((p) => ({
-      ...p,
-      constraints: p.constraints.map((c, i) => {
-        if (i !== ri) return c;
-        const coefs = [...c.coefs];
-        coefs[ci] = val;
-        return { ...c, coefs };
-      }),
-    }));
+  const setConstraintCoef = useCallback((cIdx, vIdx, val) => {
+    setProblem((p) => {
+      const constraints = [...p.constraints];
+      const coefs = [...constraints[cIdx].coefs];
+      coefs[vIdx] = val;
+      constraints[cIdx] = { ...constraints[cIdx], coefs };
+      return { ...p, constraints };
+    });
   }, []);
 
-  const setConstraintSign = useCallback((ri, sign) => {
-    setProblem((p) => ({
-      ...p,
-      constraints: p.constraints.map((c, i) => (i === ri ? { ...c, sign } : c)),
-    }));
+  const setConstraintSign = useCallback((cIdx, sign) => {
+    setProblem((p) => {
+      const constraints = [...p.constraints];
+      constraints[cIdx] = { ...constraints[cIdx], sign };
+      return { ...p, constraints };
+    });
   }, []);
 
-  const setConstraintRhs = useCallback((ri, val) => {
-    setProblem((p) => ({
-      ...p,
-      constraints: p.constraints.map((c, i) =>
-        i === ri ? { ...c, rhs: val } : c,
-      ),
-    }));
+  const setConstraintRhs = useCallback((cIdx, val) => {
+    setProblem((p) => {
+      const constraints = [...p.constraints];
+      constraints[cIdx] = { ...constraints[cIdx], rhs: val };
+      return { ...p, constraints };
+    });
   }, []);
 
-  const removeConstraint = useCallback((ri) => {
-    setProblem((p) =>
-      p.constraints.length <= 1
-        ? p
-        : {
-            ...p,
-            constraints: p.constraints.filter((_, i) => i !== ri),
-          },
-    );
+  const removeConstraint = useCallback((idx) => {
+    setProblem((p) => {
+      if (p.constraints.length <= 1) return p;
+      return {
+        ...p,
+        constraints: p.constraints.filter((_, i) => i !== idx),
+      };
+    });
   }, []);
 
   const addConstraint = useCallback(() => {
-    setProblem((p) =>
-      p.constraints.length >= 6
-        ? p
-        : {
-            ...p,
-            constraints: [...p.constraints, makeDefaultConstraint(p.numVars)],
-          },
-    );
+    setProblem((p) => ({
+      ...p,
+      constraints: [...p.constraints, makeDefaultConstraint(p.numVars)],
+    }));
   }, []);
 
   const solve = useCallback(() => {
+    setSolving(true);
     setError(null);
     setResult(null);
-    setSolving(true);
 
-    const getGCD = (a, b) => {
-      a = Math.abs(Math.round(a));
-      b = Math.abs(Math.round(b));
-      return b === 0 ? a : getGCD(b, a % b);
-    };
-
-    const simplifiedConstraints = problem.constraints.map((c) => {
-      let g = 0;
-      const allVals = [...c.coefs, c.rhs];
-      for (const v of allVals) {
-        const n = Math.abs(Number(v));
-        if (n > 1e-9) g = getGCD(g, n);
-      }
-      const divBy = g || 1;
-      return {
-        ...c,
-        coefs: c.coefs.map((v) => Number(v) / divBy),
-        rhs: Number(c.rhs) / divBy,
-      };
-    });
+    const cleanConstraints = problem.constraints.map((c) => ({
+      ...c,
+      coefs: c.coefs.map((v) => Number(v)),
+      rhs: Number(c.rhs),
+    }));
 
     setTimeout(() => {
       try {
         const res = solveSimplex(
           problem.objCoefs,
-          simplifiedConstraints,
+          cleanConstraints,
           problem.objType,
         );
         setResult(res);
@@ -166,8 +155,8 @@ export function useSimplex() {
 
   const objPreview = useMemo(() => {
     const parts = problem.objCoefs.map((c, i) => `${c}x${i + 1}`).join(" + ");
-    return `F = ${parts} → ${problem.objType === "max" ? "МАКС" : "МІН"}`;
-  }, [problem.objCoefs, problem.objType]);
+    return `F = ${parts}`;
+  }, [problem.objCoefs]);
 
   return {
     problem,
