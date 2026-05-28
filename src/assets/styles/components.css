@@ -93,7 +93,7 @@
 }
 .obj-preview {
   font-family: var(--mono);
-  font-size: 10px;
+  font-size: 14px;
   color: var(--text-4);
   margin-top: 8px;
 }
@@ -208,7 +208,7 @@
 }
 .nonneg-hint {
   font-family: var(--mono);
-  font-size: 9px;
+  font-size: 14px;
   color: var(--text-4);
   margin-top: 10px;
 }
@@ -281,7 +281,7 @@
 }
 .table-scroll {
   overflow-x: auto;
-  border-radius: var(--r-md);
+  border-radius: 0;
 }
 
 .simplex-table {
@@ -318,8 +318,13 @@
 }
 
 .tc-blank {
-  background: transparent !important;
-  border-color: transparent !important;
+  background: rgba(59, 130, 246, 0.04) !important;
+  width: 48px;
+  min-width: 48px;
+}
+.tc-cb {
+  width: 48px;
+  min-width: 48px;
 }
 .tc-head {
   color: var(--text-4);

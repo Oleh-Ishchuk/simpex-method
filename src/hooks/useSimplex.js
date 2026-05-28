@@ -59,18 +59,21 @@ export function useSimplex() {
 
   const setNumCons = useCallback((delta) => {
     setProblem((p) => {
-      if (delta > 0) {
+      const nextLen = Math.min(6, Math.max(1, p.constraints.length + delta));
+      if (nextLen === p.constraints.length) return p;
+
+      if (nextLen > p.constraints.length) {
+        const addCount = nextLen - p.constraints.length;
         return {
           ...p,
           constraints: [
             ...p.constraints,
-            ...Array(delta)
+            ...Array(addCount)
               .fill(null)
               .map(() => makeDefaultConstraint(p.numVars)),
           ],
         };
       } else {
-        const nextLen = Math.max(1, p.constraints.length + delta);
         return { ...p, constraints: p.constraints.slice(0, nextLen) };
       }
     });
@@ -113,10 +116,13 @@ export function useSimplex() {
   }, []);
 
   const addConstraint = useCallback(() => {
-    setProblem((p) => ({
-      ...p,
-      constraints: [...p.constraints, makeDefaultConstraint(p.numVars)],
-    }));
+    setProblem((p) => {
+      if (p.constraints.length >= 6) return p;
+      return {
+        ...p,
+        constraints: [...p.constraints, makeDefaultConstraint(p.numVars)],
+      };
+    });
   }, []);
 
   const solve = useCallback(() => {
