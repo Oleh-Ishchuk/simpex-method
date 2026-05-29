@@ -130,16 +130,43 @@ export function useSimplex() {
     setError(null);
     setResult(null);
 
-    const cleanConstraints = problem.constraints.map((c) => ({
-      ...c,
-      coefs: c.coefs.map((v) => Number(v)),
-      rhs: Number(c.rhs),
-    }));
+    const isInvalid = (val) =>
+      val === "" ||
+      val === null ||
+      val === undefined ||
+      String(val).trim() === "" ||
+      isNaN(Number(val));
+
+    if (problem.objCoefs.some(isInvalid)) {
+      setError("Введено некоректні дані");
+      setSolving(false);
+      return;
+    }
+
+    let hasInvalid = false;
+    const cleanConstraints = problem.constraints.map((c) => {
+      if (isInvalid(c.rhs)) hasInvalid = true;
+      const coefs = c.coefs.map((v) => {
+        if (isInvalid(v)) hasInvalid = true;
+        return Number(v);
+      });
+      return {
+        ...c,
+        coefs,
+        rhs: Number(c.rhs),
+      };
+    });
+
+    if (hasInvalid) {
+      setError("Введено некоректні дані");
+      setSolving(false);
+      return;
+    }
 
     setTimeout(() => {
       try {
         const res = solveSimplex(
-          problem.objCoefs,
+          problem.objCoefs.map((v) => Number(v)),
           cleanConstraints,
           problem.objType,
         );

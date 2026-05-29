@@ -15,29 +15,25 @@ export default function NumInput({
   const handleChange = (e) => {
     const str = e.target.value;
     setRaw(str);
-    const parsed = parseFloat(str);
-    if (!isNaN(parsed)) onChange(parsed);
+    onChange(str);
   };
 
   const handleBlur = () => {
-    const parsed = parseFloat(raw);
-    if (isNaN(parsed)) {
-      setRaw("0");
-      onChange(0);
-    } else {
+    if (raw !== "" && !isNaN(Number(raw))) {
+      const parsed = Number(raw);
       setRaw(String(parsed));
       onChange(parsed);
     }
   };
 
   const inc = () => {
-    const next = (parseFloat(raw) || 0) + step;
+    const next = (Number(raw) || 0) + step;
     setRaw(String(next));
     onChange(next);
   };
 
   const dec = () => {
-    const next = (parseFloat(raw) || 0) - step;
+    const next = (Number(raw) || 0) - step;
     setRaw(String(next));
     onChange(next);
   };
