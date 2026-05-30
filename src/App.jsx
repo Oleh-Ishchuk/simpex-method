@@ -1,9 +1,8 @@
 import { useState, useRef, useEffect } from "react";
 import { useSimplex } from "./hooks/useSimplex";
-import { Sigma, ChevronDown, ChevronUp, ArrowUp } from "lucide-react";
+import { Sigma, ArrowUp } from "lucide-react";
 import { fmt } from "./utils/math";
-import ObjectiveInput from "./components/ObjectiveInput/ObjectiveInput";
-import ConstraintPanel from "./components/ConstraintRow/ConstraintPanel";
+import InputPanel from "./components/InputPanel/InputPanel";
 import AllIterations from "./components/SimplexTable/SimplexTable";
 import ResultPanel from "./components/ResultPanel/ResultPanel";
 import ProblemDisplay from "./components/ProblemDisplay/ProblemDisplay";
@@ -29,7 +28,6 @@ export default function App() {
   } = useSimplex();
 
   const [hasSolved, setHasSolved] = useState(false);
-  const [inputOpen, setInputOpen] = useState(true);
   const [showScrollTop, setShowScrollTop] = useState(false);
   const scrollRef = useRef(null);
 
@@ -39,7 +37,6 @@ export default function App() {
   };
   const handleReset = () => {
     setHasSolved(false);
-    setInputOpen(true);
     reset();
   };
 
@@ -106,134 +103,22 @@ export default function App() {
 
       <div className="page-scroll" ref={scrollRef} onScroll={handleScroll}>
         <div className="page-content">
-          <div className="input-card">
-            <div
-              className="input-card-header"
-              onClick={() => setInputOpen((o) => !o)}
-            >
-              <div className="input-card-title">
-                <span className="title-pill">Задача</span>
-                <span className="title-text">Налаштування</span>
-              </div>
-              <div className="input-card-meta">
-                <span className="meta-chip">
-                  {problem.objType === "max" ? "MAX" : "MIN"}
-                </span>
-                <span className="meta-chip">{problem.numVars} змін.</span>
-                <span className="meta-chip">{numCons} обм.</span>
-                <button className="collapse-btn">
-                  {inputOpen ? (
-                    <ChevronUp size={14} />
-                  ) : (
-                    <ChevronDown size={14} />
-                  )}
-                </button>
-              </div>
-            </div>
-
-            <div
-              className={`input-card-body${inputOpen ? " input-card-body--open" : ""}`}
-            >
-              <div className="input-card-inner">
-                <div className="obj-section">
-                  <div className="section-label">
-                    <span className="section-dot" />
-                    Цільова функція
-                  </div>
-                  <div className="obj-controls">
-                    <select
-                      className="type-select"
-                      value={problem.objType}
-                      onChange={(e) => setObjType(e.target.value)}
-                    >
-                      <option value="max">MAXIMIZE</option>
-                      <option value="min">MINIMIZE</option>
-                    </select>
-                    <div className="vars-control">
-                      <span className="vars-label">Змінних</span>
-                      <button
-                        className="ctrl-btn"
-                        onClick={() => setNumVars(-1)}
-                      >
-                        −
-                      </button>
-                      <span className="ctrl-val">{problem.numVars}</span>
-                      <button
-                        className="ctrl-btn"
-                        onClick={() => setNumVars(+1)}
-                      >
-                        +
-                      </button>
-                    </div>
-                    <div className="vars-control">
-                      <span className="vars-label">Обмежень</span>
-                      <button
-                        className="ctrl-btn"
-                        onClick={() => setNumCons(-1)}
-                      >
-                        −
-                      </button>
-                      <span className="ctrl-val">{numCons}</span>
-                      <button
-                        className="ctrl-btn"
-                        onClick={() => setNumCons(+1)}
-                      >
-                        +
-                      </button>
-                    </div>
-                  </div>
-                  <ObjectiveInput
-                    numVars={problem.numVars}
-                    objCoefs={problem.objCoefs}
-                    objType={problem.objType}
-                    objPreview={objPreview}
-                    onCoefChange={setObjCoef}
-                  />
-                </div>
-
-                <div className="section-divider" />
-
-                <div className="con-section">
-                  <div className="section-label">
-                    <span className="section-dot section-dot--blue" />
-                    Система обмежень
-                  </div>
-                  <ConstraintPanel
-                    constraints={problem.constraints}
-                    numVars={problem.numVars}
-                    onCoefChange={setConstraintCoef}
-                    onSignChange={setConstraintSign}
-                    onRhsChange={setConstraintRhs}
-                    onDelete={removeConstraint}
-                    onAdd={addConstraint}
-                  />
-                </div>
-
-                <div className="section-divider" />
-
-                <div className="action-row">
-                  <button
-                    className={`btn-solve${solving ? " btn-solve--busy" : ""}`}
-                    onClick={handleSolve}
-                    disabled={solving}
-                  >
-                    {solving ? (
-                      <>
-                        <span className="btn-spinner" /> Розв'язую…
-                      </>
-                    ) : (
-                      <>
-                        <Sigma size={15} /> Розв'язати
-                      </>
-                    )}
-                  </button>
-                  <button className="btn-reset" onClick={handleReset}>
-                    ↺ Скинути
-                  </button>
-                </div>
-              </div>
-            </div>
-          </div>
+          <InputPanel
+            problem={problem}
+            solving={solving}
+            objPreview={objPreview}
+            onObjTypeChange={setObjType}
+            onNumVarsChange={setNumVars}
+            onNumConsChange={setNumCons}
+            onObjCoefChange={setObjCoef}
+            onConstraintCoefChange={setConstraintCoef}
+            onConstraintSignChange={setConstraintSign}
+            onConstraintRhsChange={setConstraintRhs}
+            onRemoveConstraint={removeConstraint}
+            onAddConstraint={addConstraint}
+            onSolve={handleSolve}
+            onReset={handleReset}
+          />
 
           {!error && hasSolved && (
             <ProblemDisplay
