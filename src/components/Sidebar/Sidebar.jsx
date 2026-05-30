@@ -98,7 +98,7 @@ export default function Sidebar({
             </div>
             <br />
             <div>
-              <span className="log-entry__success">▸ ОПТИМУМ ✓</span>
+              <span className="log-entry__success">▸ ОПТИМАЛЬНИЙ ПЛАН ✓</span>
             </div>
           </div>
         ) : (
